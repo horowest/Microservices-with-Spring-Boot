@@ -15,17 +15,16 @@ import com.example.orderservice.model.Order;
 import com.example.orderservice.model.OrderLineItem;
 import com.example.orderservice.repo.OrderRepository;
 
-
 @Service
 @Transactional
 public class OrderService {
 
     @Autowired
-    private WebClient webClient;
+    private WebClient.Builder webClientBuilder;
 
     @Autowired
     private OrderRepository orderRepository;
-    
+
     public void placeOrder(OrderRequest orderRequest) {
         Order order = new Order();
 
@@ -37,16 +36,16 @@ public class OrderService {
                 .collect(Collectors.toList());
 
         // check if item is in stock
-        for(OrderLineItem item : orderLineItems) {
-            Boolean isInStock = webClient.get()
-                    .uri("http://localhost:8082/api/inventory", builder -> {
+        for (OrderLineItem item : orderLineItems) {
+            Boolean isInStock = webClientBuilder.build().get()
+                    .uri("http://inventory-service/api/inventory", builder -> {
                         return builder.queryParam("skuCode", item.getSkuCode()).build();
                     })
                     .retrieve()
                     .bodyToMono(Boolean.class)
                     .block();
 
-            if(isInStock) {
+            if (isInStock) {
                 order.addItemToOrderLine(item);
             } else {
                 throw new IllegalArgumentException(item.getSkuCode() + " is not in stock.");
