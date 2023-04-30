@@ -1,5 +1,6 @@
 package com.example.orderservice.model;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.persistence.CascadeType;
@@ -28,7 +29,7 @@ public class Order {
     private String orderNumber;
 
     @OneToMany(cascade = CascadeType.ALL)
-    private List<OrderLineItem> orderLineItems;
+    private List<OrderLineItem> orderLineItems = new ArrayList<>();
 
     public void addItemToOrderLine(OrderLineItem item) {
         orderLineItems.add(item);

@@ -1,10 +1,13 @@
 package com.example.orderservice.service;
 
+import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import com.example.orderservice.dto.OrderLineItemTO;
 import com.example.orderservice.dto.OrderRequest;
@@ -14,7 +17,11 @@ import com.example.orderservice.repo.OrderRepository;
 
 
 @Service
+@Transactional
 public class OrderService {
+
+    @Autowired
+    private WebClient webClient;
 
     @Autowired
     private OrderRepository orderRepository;
@@ -24,11 +31,28 @@ public class OrderService {
 
         order.setOrderNumber(UUID.randomUUID().toString());
 
-        order.setOrderLineItems(orderRequest.getOrderLineItems()
+        List<OrderLineItem> orderLineItems = orderRequest.getOrderLineItems()
                 .stream()
                 .map(this::mapToDTO)
-                .collect(Collectors.toList()));
-        
+                .collect(Collectors.toList());
+
+        // check if item is in stock
+        for(OrderLineItem item : orderLineItems) {
+            Boolean isInStock = webClient.get()
+                    .uri("http://localhost:8082/api/inventory", builder -> {
+                        return builder.queryParam("skuCode", item.getSkuCode()).build();
+                    })
+                    .retrieve()
+                    .bodyToMono(Boolean.class)
+                    .block();
+
+            if(isInStock) {
+                order.addItemToOrderLine(item);
+            } else {
+                throw new IllegalArgumentException(item.getSkuCode() + " is not in stock.");
+            }
+        }
+
         orderRepository.save(order);
     }
 
